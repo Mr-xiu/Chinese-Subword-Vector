@@ -1,6 +1,7 @@
 import math
 import random
 
+import numpy as np
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from skip_gram import SkipGramDataset, SkipGram
@@ -13,7 +14,7 @@ class SGNS:
     """
 
     def __init__(self, train_path: str = 'data/corpus.txt', window_size=2, negative_sample_num=4, embedding_size=100,
-                 device='cpu'):
+                 device='cpu', has_train=False):
         """
         初始化的方法
         :param train_path: 训练语料的位置
@@ -21,7 +22,9 @@ class SGNS:
         :param negative_sample_num: negative_sample_num代表了对于每个正样本，我们需要随机采样多少负样本用于训练
         :param embedding_size: 嵌入向量的维度大小
         :param device: 当前使用的设备('cpu'或'cuda')
+        :param has_train: 若为True，表示模型已经训练成功，不进行二次采样与构建dataloader（省内存）
         """
+        self.embeddings = None
         self.dataset = None  # 数据集
         self.dataloader = None
         self.device = device
@@ -43,11 +46,11 @@ class SGNS:
         self.vocab_size = len(self.word2id_dict)  # 词表大小
         print(f'构建id完成，语料中共有{self.vocab_size}个词~')
 
-        # 进行二次采样
-        self.subsampling()
-
-        # 构建数据集
-        self.build_data(window_size, negative_sample_num)
+        if not has_train:
+            # 进行二次采样
+            self.subsampling()
+            # 构建数据集
+            self.build_data(window_size, negative_sample_num)
 
         self.model = SkipGram(self.vocab_size, embedding_size).to(self.device)
 
@@ -164,10 +167,71 @@ class SGNS:
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-            print(f'第{epoch+1}轮训练结束,loss为{loss:>7f}')
+            print(f'第{epoch + 1}轮训练结束,loss为{loss:>7f}')
         torch.save(self.model.state_dict(), save_path)
+        self.embeddings = self.model.embedding.to('cpu')
+        self.embeddings = self.embeddings.weight.data.numpy()
+    def load_model(self, model_path='model/SGNS.pth'):
+        """
+        从磁盘中读取模型
+        :param model_path: 模型的位置
+        """
+        self.model.load_state_dict(torch.load(model_path, map_location=self.device))
+        self.embeddings = self.model.embedding.to('cpu')
+        self.embeddings = self.embeddings.weight.data.numpy()
 
-# device = 'cuda' if torch.cuda.is_available() else 'cpu'
-# print(f'device:{device}')
-a = SGNS(device='cuda')
-a.train(5)
+    def get_cos_sim(self, word1, word2):
+        """
+        计算传入词余弦相似度的方法
+        :param word1: 第一个词
+        :param word2: 第二个词
+        :return: 这两个词的余弦相似度
+        """
+        # 如果词不在词典中，就忽略
+        if (word1 not in self.word2id_dict) or (word2 not in self.word2id_dict):
+            return 0
+        word1_vec = self.embeddings[self.word2id_dict[word1]]
+        word2_vec = self.embeddings[self.word2id_dict[word2]]
+        cos_sim = np.dot(word1_vec, word2_vec) / (np.linalg.norm(word1_vec) * np.linalg.norm(word2_vec))
+        return cos_sim
+
+
+
+def test_pku_sim(has_train=True, epoch_num=5, model_path='model/SGNS.pth', test_path='data/pku_sim_test.txt',
+                 result_path='data/sgns_result.txt'):
+    """
+    在pku_sim_test.txt中测试训练模型表现的方法
+    :param has_train: 若为True，表示模型已经训练成功，不进行二次采样与构建dataloader（省内存）
+    :param epoch_num: 训练的轮数
+    :param model_path: 模型的位置
+    :param test_path: 测试文件的位置
+    :param result_path: 测试结果文件保存的位置
+    """
+    if not has_train:
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        print(f'device:{device}')
+        my_sgns = SGNS(device='cpu', has_train=False)
+        my_sgns.train(epoch_num, save_path=model_path)
+    else:
+        # 读取模型
+        my_sgns = SGNS(device='cpu', has_train=True)
+        my_sgns.load_model(model_path)
+
+    # 读取测试文本
+    with open(test_path, 'r', encoding='UTF-8') as f:
+        test_lines = f.readlines()
+        f.close()
+    f = open(result_path, 'w', encoding='UTF-8')
+    # 开始按行测试
+    for i in range(len(test_lines)):
+        line = test_lines[i].strip('\n').split('\t')
+        if len(line) == 0:
+            continue
+        word1 = line[0]
+        word2 = line[1]
+        sim_sgns = my_sgns.get_cos_sim(word1, word2)
+        f.write(f'{word1}\t{word2}\t{sim_sgns}\n')
+    f.close()
+
+if __name__ == "__main__":
+    test_pku_sim(test_path='data/pku_sim_test.txt')
