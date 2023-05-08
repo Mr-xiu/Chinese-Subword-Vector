@@ -68,7 +68,7 @@ class SGNS:
             # print('，'.join(line_list))
             self.corpus[i] = []
             for word in line_list:
-                # 出去符号表中的元素
+                # 除去符号表中的元素
                 if word not in symbol_set:
                     self.corpus[i].append(word)
             # print('，'.join(corpus[i]))
@@ -230,7 +230,7 @@ def test_pku_sim(has_train=True, epoch_num=5, model_path='model/SGNS.pth', test_
         word1 = line[0]
         word2 = line[1]
         sim_sgns = my_sgns.get_cos_sim(word1, word2)
-        f.write(f'{word1}\t{word2}\t{sim_sgns}\n')
+        f.write(f'{word1}\t{word2}\t{sim_sgns:.4f}\n')
     f.close()
 
 if __name__ == "__main__":
