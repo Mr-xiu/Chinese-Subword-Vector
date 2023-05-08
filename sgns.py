@@ -164,8 +164,10 @@ class SGNS:
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-            print(f'第{epoch}轮训练结束,loss为{loss:>7f}')
-        torch.save({'model': self.model.state_dict()}, save_path)
+            print(f'第{epoch+1}轮训练结束,loss为{loss:>7f}')
+        torch.save(self.model.state_dict(), save_path)
 
-a = SGNS()
+# device = 'cuda' if torch.cuda.is_available() else 'cpu'
+# print(f'device:{device}')
+a = SGNS(device='cuda')
 a.train(5)
