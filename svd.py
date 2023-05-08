@@ -12,6 +12,7 @@ class SVD:
         :param train_path: 训练语料的位置
         :param vocab_max_size: 词表最大的大小
         """
+        self.word_vectors = None
         self.corpus = []  # 语料列表（每一项为每一行的语料）
         # 先读取语料
         with open(train_path, 'r', encoding='UTF-8') as f:
@@ -66,6 +67,7 @@ class SVD:
                     self.freq_dict[word] = 1
                 else:
                     self.freq_dict[word] += 1
+
         # 按照词频排序
         sort_dict = sorted(self.freq_dict.items(), key=lambda x: x[1], reverse=True)
 
@@ -103,12 +105,69 @@ class SVD:
         # 对共现矩阵进行SVD分解，得到U、Σ和V矩阵
         U, S, V = np.linalg.svd(co_matrix)
 
-
         # 选择U矩阵的前50列作为词向量矩阵
-        word_vectors = U[:, :vector_dim]
-        np.save(save_path, np.array(word_vectors))
+        self.word_vectors = U[:, :vector_dim]
+
+        np.save(save_path, np.array(self.word_vectors))
+
+    def load_svd_vector(self, model_path='model/svd.npy'):
+        self.word_vectors = np.load(model_path)
+        print('模型加载成功！')
+
+    def get_cos_sim(self, word1, word2):
+        """
+        计算传入词余弦相似度的方法
+        :param word1: 第一个词
+        :param word2: 第二个词
+        :return: 这两个词的余弦相似度
+        """
+        # 如果词不在词典中，就忽略
+        if (word1 not in self.word2id_dict) or (word2 not in self.word2id_dict) or (self.word2id_dict[word1] >= self.vocab_size) or (
+                self.word2id_dict[word2] >= self.vocab_size):
+            return 0
+        word1_vec = self.word_vectors[self.word2id_dict[word1]]
+        word2_vec = self.word_vectors[self.word2id_dict[word2]]
+        cos_sim = np.dot(word1_vec, word2_vec) / (np.linalg.norm(word1_vec) * np.linalg.norm(word2_vec))
+        return cos_sim
+
+
+def get_svd_result(has_train=True, vocab_max_size=10000, vector_dim=100, window_size=5, model_path='model/svd.npy',
+                   test_path='data/pku_sim_test.txt',
+                   result_path='data/svd_result.txt'):
+    """
+    在pku_sim_test.txt中测试训练模型表现的方法
+    :param has_train: 若为True，表示模型已经训练成功，只需在内存中加载svd词向量矩阵
+    :param vocab_max_size: 词表最大的大小
+    :param vector_dim: 词向量的维度
+    :param window_size: 共现窗口的大小
+    :param model_path: svd词向量矩阵的位置
+    :param test_path: 测试文件的位置
+    :param result_path: 测试结果文件保存的位置
+    """
+    if not has_train:
+        svd = SVD(train_path='data/corpus.txt', vocab_max_size=vocab_max_size)
+        svd.build_svd_vector(save_path=model_path, vector_dim=vector_dim, window_size=window_size)
+    else:
+        # 读取模型
+        svd = SVD(train_path='data/corpus.txt', vocab_max_size=vocab_max_size)
+        svd.load_svd_vector(model_path)
+
+    # 读取测试文本
+    with open(test_path, 'r', encoding='UTF-8') as f:
+        test_lines = f.readlines()
+        f.close()
+    f = open(result_path, 'w', encoding='UTF-8')
+    # 开始按行测试
+    for i in range(len(test_lines)):
+        line = test_lines[i].strip('\n').split('\t')
+        if len(line) == 0:
+            continue
+        word1 = line[0]
+        word2 = line[1]
+        sim_sgns = svd.get_cos_sim(word1, word2)
+        f.write(f'{word1}\t{word2}\t{sim_sgns:.4f}\n')
+    f.close()
 
 
 if __name__ == "__main__":
-    svd = SVD(train_path='data/corpus.txt')
-    svd.build_svd_vector(save_path='model/svd.npy', vector_dim=100, window_size=5)
+    get_svd_result(has_train=True, test_path='data/pku_sim_test.txt', vocab_max_size=20000)

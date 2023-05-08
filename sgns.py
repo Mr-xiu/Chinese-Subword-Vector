@@ -171,6 +171,7 @@ class SGNS:
         torch.save(self.model.state_dict(), save_path)
         self.embeddings = self.model.embedding.to('cpu')
         self.embeddings = self.embeddings.weight.data.numpy()
+
     def load_model(self, model_path='model/SGNS.pth'):
         """
         从磁盘中读取模型
@@ -196,9 +197,8 @@ class SGNS:
         return cos_sim
 
 
-
-def test_pku_sim(has_train=True, epoch_num=5, model_path='model/SGNS.pth', test_path='data/pku_sim_test.txt',
-                 result_path='data/sgns_result.txt'):
+def test_sgns(has_train=True, epoch_num=5, model_path='model/SGNS.pth', test_path='data/pku_sim_test.txt',
+              result_path='data/sgns_result.txt'):
     """
     在pku_sim_test.txt中测试训练模型表现的方法
     :param has_train: 若为True，表示模型已经训练成功，不进行二次采样与构建dataloader（省内存）
@@ -233,5 +233,6 @@ def test_pku_sim(has_train=True, epoch_num=5, model_path='model/SGNS.pth', test_
         f.write(f'{word1}\t{word2}\t{sim_sgns:.4f}\n')
     f.close()
 
+
 if __name__ == "__main__":
-    test_pku_sim(test_path='data/pku_sim_test.txt')
+    test_sgns(test_path='data/pku_sim_test.txt')
