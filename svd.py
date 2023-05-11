@@ -1,4 +1,5 @@
 import numpy as np
+import scipy
 
 
 class SVD:
@@ -103,9 +104,11 @@ class SVD:
                         co_matrix[self.word2id_dict[center_word], self.word2id_dict[context_word]] += 1
         print('构建共现矩阵完成，开始进行SVD分解~')
         # 对共现矩阵进行SVD分解，得到U、Σ和V矩阵
-        U, S, V = np.linalg.svd(co_matrix)
-
-        # 选择U矩阵的前50列作为词向量矩阵
+        # U, S, V = np.linalg.svd(co_matrix)
+        # 先转换为稀疏矩阵
+        co_matrix = scipy.sparse.csr_matrix(co_matrix).asfptype()
+        U, S, V = scipy.sparse.linalg.svds(co_matrix, k=vector_dim)
+        # 选择U矩阵的前vector_dim列作为词向量矩阵
         self.word_vectors = U[:, :vector_dim]
 
         np.save(save_path, np.array(self.word_vectors))
@@ -170,4 +173,4 @@ def get_svd_result(has_train=True, vocab_max_size=10000, vector_dim=100, window_
 
 
 if __name__ == "__main__":
-    get_svd_result(has_train=True, test_path='data/pku_sim_test.txt', vocab_max_size=20000)
+    get_svd_result(has_train=False, test_path='data/pku_sim_test.txt', vocab_max_size=20000)
