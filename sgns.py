@@ -73,8 +73,6 @@ class SGNS:
                     self.corpus[i].append(word)
             # print('，'.join(corpus[i]))
 
-        return self.corpus
-
     def create_id(self):
         """
         为语料中的每个词根据出现的频率构建ID
@@ -232,6 +230,7 @@ def test_sgns(has_train=True, epoch_num=5, model_path='model/SGNS.pth', test_pat
         sim_sgns = my_sgns.get_cos_sim(word1, word2)
         f.write(f'{word1}\t{word2}\t{sim_sgns:.4f}\n')
     f.close()
+
 
 
 if __name__ == "__main__":
