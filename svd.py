@@ -110,7 +110,7 @@ class SVD:
 
         U, S, V = scipy.sparse.linalg.svds(co_matrix, k=vector_dim)
         print(f'计算了{len(S)}个奇异值，计算的奇异值之和为：{np.sum(S)}~')
-        s_temp = np.sum(S)
+        # s_temp = np.sum(S)
         # 选择U矩阵的前vector_dim列作为词向量矩阵
         self.word_vectors = U[:, :vector_dim]
 
