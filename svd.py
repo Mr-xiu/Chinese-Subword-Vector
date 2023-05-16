@@ -107,11 +107,17 @@ class SVD:
         # U, S, V = np.linalg.svd(co_matrix)
         # 先转换为稀疏矩阵
         co_matrix = scipy.sparse.csr_matrix(co_matrix).asfptype()
+
         U, S, V = scipy.sparse.linalg.svds(co_matrix, k=vector_dim)
+        print(f'计算了{len(S)}个奇异值，计算的奇异值之和为：{np.sum(S)}~')
+        s_temp = np.sum(S)
         # 选择U矩阵的前vector_dim列作为词向量矩阵
         self.word_vectors = U[:, :vector_dim]
 
         np.save(save_path, np.array(self.word_vectors))
+        # U, S, V = scipy.sparse.linalg.svds(co_matrix, k=self.vocab_size-1)
+        # print(f'共有{len(S)}个奇异值，总的奇异值之和为：{np.sum(S)}~')
+        # print(f'选取的奇异值与总的奇异值的和的比值为：{s_temp / np.sum(S):0.2f}')
 
     def load_svd_vector(self, model_path='model/svd.npy'):
         self.word_vectors = np.load(model_path)
@@ -170,7 +176,9 @@ def get_svd_result(has_train=True, vocab_max_size=100000, vector_dim=100, window
         sim_sgns = svd.get_cos_sim(word1, word2)
         f.write(f'{word1}\t{word2}\t{sim_sgns:.4f}\n')
     f.close()
-def get_10_most_similar(word,has_train=True, vocab_max_size=100000, vector_dim=100, window_size=5, model_path='model/svd.npy'):
+
+
+def get_10_most_similar(word, has_train=True, vocab_max_size=100000, vector_dim=100, window_size=5, model_path='model/svd.npy'):
     """
     测试与输入词十个最相似词的方法
     :param word: 输入的词
@@ -193,15 +201,16 @@ def get_10_most_similar(word,has_train=True, vocab_max_size=100000, vector_dim=1
     q = PriorityQueue()  # 最相似的词的序列
     for i in range(svd.vocab_size):
         word2 = svd.id2word_dict[i]
-        if word2==word:
+        if word2 == word:
             continue
         sim_sgns = svd.get_cos_sim(word, word2)
-        q.put((-sim_sgns,word2))
+        q.put((-sim_sgns, word2))
     print(f'与{word}最相似的十个词为：')
     for i in range(10):
         next_item = q.get()
         print(f'{next_item[1]}\t{-next_item[0]:.2f}')
 
+
 if __name__ == "__main__":
     get_svd_result(has_train=True, test_path='data/pku_sim_test.txt', vocab_max_size=100000)
-    get_10_most_similar('美国')
+    # get_10_most_similar('美国')
